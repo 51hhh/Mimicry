@@ -3,11 +3,21 @@
 :root {
   --color-bg: #0f0f0f;
   --color-surface: #1a1a1a;
+  --color-surface-hover: #252525;
+  --color-surface-active: #2d2d2d;
   --color-border: #2a2a2a;
+  --color-border-hover: #404040;
   --color-text: #e0e0e0;
   --color-text-muted: #888;
+  --color-text-inverse: #0f0f0f;
   --color-primary: #3b82f6;
-  --color-accent: #22c55e;
+  --color-accent: #3b82f6;
+  --color-success: #22c55e;
+  --color-warning: #eab308;
+  --color-error: #ef4444;
+  --color-info: #60a5fa;
+  --color-separator: rgba(255,255,255,0.06);
+  --color-separator-light: rgba(255,255,255,0.03);
 }
 
 html, body, #app {
@@ -20,21 +30,86 @@ html, body, #app {
   font-family: Inter, system-ui, -apple-system, sans-serif;
 }
 
+/* === Vue Flow theme overrides === */
+
+/* Dark theme: override default white backgrounds */
+.editor-canvas .vue-flow__controls {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.editor-canvas .vue-flow__controls-button {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-text-muted);
+  fill: var(--color-text-muted);
+}
+
+.editor-canvas .vue-flow__controls-button:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+  fill: var(--color-text);
+}
+
+.editor-canvas .vue-flow__controls-button svg {
+  fill: currentColor;
+}
+
+.editor-canvas .vue-flow__minimap {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+}
+
+.editor-canvas .vue-flow__background {
+  background: var(--color-bg);
+}
+
+.editor-canvas .vue-flow__edge-path {
+  stroke: var(--color-text-muted);
+}
+
+.editor-canvas .vue-flow__handle {
+  background: var(--color-text-muted);
+  border-color: var(--color-surface);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}
+
 /* Node execution status */
 .status-running {
-  box-shadow: 0 0 0 2px #3b82f6, 0 0 12px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 0 0 2px var(--color-info), 0 0 12px color-mix(in srgb, var(--color-info) 40%, transparent);
   animation: pulse-running 1.5s ease-in-out infinite;
 }
 
 .status-success {
-  box-shadow: 0 0 0 2px #22c55e;
+  box-shadow: 0 0 0 2px var(--color-success);
 }
 
 .status-error {
-  box-shadow: 0 0 0 2px #ef4444, 0 0 8px rgba(239, 68, 68, 0.3);
+  box-shadow: 0 0 0 2px var(--color-error), 0 0 8px color-mix(in srgb, var(--color-error) 30%, transparent);
 }
 
 @keyframes pulse-running {
-  0%, 100% { box-shadow: 0 0 0 2px #3b82f6, 0 0 12px rgba(59, 130, 246, 0.4); }
-  50% { box-shadow: 0 0 0 2px #3b82f6, 0 0 20px rgba(59, 130, 246, 0.6); }
+  0%, 100% { box-shadow: 0 0 0 2px var(--color-info), 0 0 12px color-mix(in srgb, var(--color-info) 40%, transparent); }
+  50% { box-shadow: 0 0 0 2px var(--color-info), 0 0 20px color-mix(in srgb, var(--color-info) 60%, transparent); }
 }

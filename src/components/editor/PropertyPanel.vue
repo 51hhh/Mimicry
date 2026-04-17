@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useWorkflowStore } from '../../stores/workflow'
 
+const { t } = useI18n()
 const store = useWorkflowStore()
 const activeTab = ref<'settings' | 'data'>('settings')
 
@@ -32,31 +34,31 @@ function updateField(field: string, value: unknown) {
 
 // Action type options based on block-system.md
 const actionTypes = [
-  { group: '浏览器操作', items: ['Navigate', 'NewTab', 'SwitchTab', 'CloseTab', 'GoBack', 'GoForward', 'Reload', 'HandleDialog'] },
-  { group: '页面交互', items: ['Click', 'Type', 'Hover', 'PressKey', 'Scroll', 'SelectOption', 'UploadFile', 'Clear', 'Focus'] },
-  { group: '数据处理', items: ['GetText', 'GetAttribute', 'GetURL', 'Screenshot', 'ExtractTable', 'SetVariable', 'Export'] },
-  { group: '高级', items: ['RunScript', 'HttpRequest', 'Log', 'Delay', 'Comment'] },
+  { group: t('blockCategories.browser'), items: ['Navigate', 'NewTab', 'SwitchTab', 'CloseTab', 'GoBack', 'GoForward', 'Reload', 'HandleDialog'] },
+  { group: t('blockCategories.interaction'), items: ['Click', 'Type', 'Hover', 'PressKey', 'Scroll', 'SelectOption', 'UploadFile', 'Clear', 'Focus'] },
+  { group: t('blockCategories.data'), items: ['GetText', 'GetAttribute', 'GetURL', 'Screenshot', 'ExtractTable', 'SetVariable', 'Export'] },
+  { group: t('blockCategories.advanced'), items: ['RunScript', 'HttpRequest', 'Log', 'Delay', 'Comment'] },
 ]
 
 const loopTypes = [
-  { value: 'count', label: '固定次数' },
-  { value: 'items', label: '遍历元素' },
-  { value: 'while', label: '条件循环' },
+  { value: 'count', label: t('loopTypes.count') },
+  { value: 'items', label: t('loopTypes.items') },
+  { value: 'while', label: t('loopTypes.while') },
 ]
 
 const conditionTypes = [
-  { value: 'exists', label: '元素存在' },
-  { value: 'not_exists', label: '元素不存在' },
-  { value: 'visible', label: '元素可见' },
-  { value: 'text_contains', label: '文本包含' },
-  { value: 'url_contains', label: 'URL 包含' },
-  { value: 'expression', label: '表达式' },
+  { value: 'exists', label: t('conditionTypes.exists') },
+  { value: 'not_exists', label: t('conditionTypes.not_exists') },
+  { value: 'visible', label: t('conditionTypes.visible') },
+  { value: 'text_contains', label: t('conditionTypes.text_contains') },
+  { value: 'url_contains', label: t('conditionTypes.url_contains') },
+  { value: 'expression', label: t('conditionTypes.expression') },
 ]
 
 const onErrorOptions = [
-  { value: 'stop', label: '停止执行' },
-  { value: 'continue', label: '继续下一步' },
-  { value: 'retry', label: '重试' },
+  { value: 'stop', label: t('errorOptions.stop') },
+  { value: 'continue', label: t('errorOptions.continue') },
+  { value: 'retry', label: t('errorOptions.retry') },
 ]
 </script>
 
@@ -64,7 +66,7 @@ const onErrorOptions = [
   <aside class="property-panel">
     <!-- Empty state -->
     <div v-if="!node" class="empty-state">
-      <div class="text-sm text-[var(--color-text-muted)]">选中节点查看属性</div>
+      <div class="text-sm text-[var(--color-text-muted)]">{{ t('propertyPanel.selectNode') }}</div>
     </div>
 
     <!-- Node properties -->
@@ -81,7 +83,7 @@ const onErrorOptions = [
               'bg-emerald-600': nodeType === 'group',
             }"
           />
-          <span class="font-semibold text-sm capitalize">{{ nodeType }}</span>
+          <span class="font-semibold text-sm capitalize">{{ t(`nodeTypes.${nodeType}`) }}</span>
           <span class="text-xs text-[var(--color-text-muted)]">{{ node.id }}</span>
         </div>
       </div>
@@ -92,13 +94,13 @@ const onErrorOptions = [
           :class="['tab-btn', activeTab === 'settings' && 'active']"
           @click="activeTab = 'settings'"
         >
-          设置
+          {{ t('propertyPanel.settings') }}
         </button>
         <button
           :class="['tab-btn', activeTab === 'data' && 'active']"
           @click="activeTab = 'data'"
         >
-          数据
+          {{ t('propertyPanel.data') }}
         </button>
       </div>
 
@@ -107,24 +109,24 @@ const onErrorOptions = [
         <!-- Action Node -->
         <template v-if="nodeType === 'action'">
           <div class="field-group">
-            <label class="field-label">动作类型</label>
+            <label class="field-label">{{ t('propertyPanel.actionType') }}</label>
             <select
               class="field-input"
               :value="editData.action"
               @change="updateField('action', ($event.target as HTMLSelectElement).value)"
             >
               <optgroup v-for="group in actionTypes" :key="group.group" :label="group.group">
-                <option v-for="item in group.items" :key="item" :value="item">{{ item }}</option>
+                <option v-for="item in group.items" :key="item" :value="item">{{ t(`blocks.${item}`) }}</option>
               </optgroup>
             </select>
           </div>
 
           <div class="field-group">
-            <label class="field-label">元素选择器</label>
+            <label class="field-label">{{ t('propertyPanel.selector') }}</label>
             <input
               type="text"
               class="field-input"
-              placeholder="#selector 或 text=..."
+              :placeholder="t('propertyPanel.selectorPlaceholder')"
               :value="editData.selector"
               @input="updateField('selector', ($event.target as HTMLInputElement).value)"
             />
@@ -134,11 +136,11 @@ const onErrorOptions = [
             v-if="['Type', 'SelectOption'].includes(String(editData.action))"
             class="field-group"
           >
-            <label class="field-label">输入值</label>
+            <label class="field-label">{{ t('propertyPanel.inputValue') }}</label>
             <input
               type="text"
               class="field-input"
-              placeholder="要输入的文本或 {{$var.name}}"
+              :placeholder="t('propertyPanel.inputValuePlaceholder')"
               :value="editData.value"
               @input="updateField('value', ($event.target as HTMLInputElement).value)"
             />
@@ -156,7 +158,7 @@ const onErrorOptions = [
           </div>
 
           <div class="field-group">
-            <label class="field-label">超时 (ms)</label>
+            <label class="field-label">{{ t('propertyPanel.timeout') }}</label>
             <input
               type="number"
               class="field-input"
@@ -170,7 +172,7 @@ const onErrorOptions = [
         <!-- Condition Node -->
         <template v-if="nodeType === 'condition'">
           <div class="field-group">
-            <label class="field-label">条件类型</label>
+            <label class="field-label">{{ t('propertyPanel.conditionType') }}</label>
             <select
               class="field-input"
               :value="editData.condition"
@@ -183,7 +185,7 @@ const onErrorOptions = [
           </div>
 
           <div class="field-group">
-            <label class="field-label">选择器</label>
+            <label class="field-label">{{ t('propertyPanel.selector') }}</label>
             <input
               type="text"
               class="field-input"
@@ -197,7 +199,7 @@ const onErrorOptions = [
             v-if="['text_contains', 'url_contains', 'expression'].includes(String(editData.condition))"
             class="field-group"
           >
-            <label class="field-label">匹配值</label>
+            <label class="field-label">{{ t('propertyPanel.matchValue') }}</label>
             <input
               type="text"
               class="field-input"
@@ -211,7 +213,7 @@ const onErrorOptions = [
         <!-- Loop Node -->
         <template v-if="nodeType === 'loop'">
           <div class="field-group">
-            <label class="field-label">循环类型</label>
+            <label class="field-label">{{ t('propertyPanel.loopType') }}</label>
             <select
               class="field-input"
               :value="editData.loopType"
@@ -224,7 +226,7 @@ const onErrorOptions = [
           </div>
 
           <div v-if="editData.loopType === 'count'" class="field-group">
-            <label class="field-label">循环次数</label>
+            <label class="field-label">{{ t('propertyPanel.loopCount') }}</label>
             <input
               type="number"
               class="field-input"
@@ -246,7 +248,7 @@ const onErrorOptions = [
           </div>
 
           <div v-if="editData.loopType === 'while'" class="field-group">
-            <label class="field-label">条件表达式</label>
+            <label class="field-label">{{ t('propertyPanel.loopCondition') }}</label>
             <input
               type="text"
               class="field-input"
@@ -257,7 +259,7 @@ const onErrorOptions = [
           </div>
 
           <div class="field-group">
-            <label class="field-label">循环变量名</label>
+            <label class="field-label">{{ t('propertyPanel.loopVariable') }}</label>
             <input
               type="text"
               class="field-input"
@@ -268,7 +270,7 @@ const onErrorOptions = [
           </div>
 
           <div class="field-group">
-            <label class="field-label">最大迭代</label>
+            <label class="field-label">{{ t('propertyPanel.maxIterations') }}</label>
             <input
               type="number"
               class="field-input"
@@ -282,18 +284,18 @@ const onErrorOptions = [
         <!-- Group Node -->
         <template v-if="nodeType === 'group'">
           <div class="field-group">
-            <label class="field-label">分组名称</label>
+            <label class="field-label">{{ t('propertyPanel.groupName') }}</label>
             <input
               type="text"
               class="field-input"
-              placeholder="分组名称"
+              :placeholder="t('propertyPanel.groupName')"
               :value="editData.label"
               @input="updateField('label', ($event.target as HTMLInputElement).value)"
             />
           </div>
 
           <div class="field-group">
-            <label class="field-label">颜色</label>
+            <label class="field-label">{{ t('propertyPanel.groupColor') }}</label>
             <div class="flex gap-2">
               <button
                 v-for="color in ['#3b82f6', '#22c55e', '#eab308', '#ef4444', '#a855f7', '#64748b']"
@@ -310,7 +312,7 @@ const onErrorOptions = [
         <!-- Common: Error handling -->
         <div class="divider" />
         <div class="field-group">
-          <label class="field-label">错误处理</label>
+            <label class="field-label">{{ t('propertyPanel.errorHandling') }}</label>
           <select
             class="field-input"
             :value="editData.onError || 'stop'"
@@ -323,7 +325,7 @@ const onErrorOptions = [
         </div>
 
         <div v-if="editData.onError === 'retry'" class="field-group">
-          <label class="field-label">重试次数</label>
+          <label class="field-label">{{ t('propertyPanel.retryCount') }}</label>
           <input
             type="number"
             class="field-input"
@@ -335,11 +337,11 @@ const onErrorOptions = [
 
         <!-- Note -->
         <div class="field-group">
-          <label class="field-label">备注</label>
+          <label class="field-label">{{ t('propertyPanel.note') }}</label>
           <textarea
             class="field-input resize-none"
             rows="2"
-            placeholder="节点说明..."
+            :placeholder="t('propertyPanel.notePlaceholder')"
             :value="editData.note as string"
             @input="updateField('note', ($event.target as HTMLTextAreaElement).value)"
           />
@@ -348,7 +350,7 @@ const onErrorOptions = [
 
       <!-- Data Tab -->
       <div v-if="activeTab === 'data'" class="panel-body">
-        <div class="text-xs text-[var(--color-text-muted)] mb-2">节点数据 (JSON)</div>
+        <div class="text-xs text-[var(--color-text-muted)] mb-2">{{ t('propertyPanel.nodeData') }}</div>
         <pre class="data-view">{{ JSON.stringify(node.data, null, 2) }}</pre>
       </div>
     </template>

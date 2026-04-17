@@ -42,6 +42,8 @@ function onDrop(event: DragEvent) {
   const type = event.dataTransfer?.getData('application/mimicry-node')
   if (!type) return
 
+  const action = event.dataTransfer?.getData('application/mimicry-action') || ''
+
   const bounds = (event.target as HTMLElement).closest('.vue-flow')?.getBoundingClientRect()
   if (!bounds) return
 
@@ -51,7 +53,7 @@ function onDrop(event: DragEvent) {
   }
 
   const dataMap: Record<string, Record<string, unknown>> = {
-    action: { action: 'Click', selector: '' },
+    action: { action: action || 'Click', selector: '' },
     condition: { condition: 'exists', selector: '' },
     loop: { loopType: 'count', count: 5 },
     group: { label: '新分组', color: '#64748b' },
@@ -63,26 +65,6 @@ function onDrop(event: DragEvent) {
 
 <template>
   <div class="flex h-full">
-    <!-- Node palette -->
-    <div class="w-48 border-r border-[var(--color-border)] p-3 space-y-2 bg-[var(--color-surface)]">
-      <div class="text-xs font-semibold text-[var(--color-text-muted)] uppercase mb-2">节点</div>
-      <div
-        v-for="item in [
-          { type: 'action', label: '动作', color: 'bg-blue-600' },
-          { type: 'condition', label: '条件', color: 'bg-amber-600' },
-          { type: 'loop', label: '循环', color: 'bg-purple-600' },
-          { type: 'group', label: '分组', color: 'bg-slate-600' },
-        ]"
-        :key="item.type"
-        class="flex items-center gap-2 p-2 rounded cursor-grab border border-[var(--color-border)] hover:border-[var(--color-accent)]"
-        draggable="true"
-        @dragstart="(e: DragEvent) => e.dataTransfer?.setData('application/mimicry-node', item.type)"
-      >
-        <span class="w-3 h-3 rounded-sm" :class="item.color"></span>
-        <span class="text-sm">{{ item.label }}</span>
-      </div>
-    </div>
-
     <!-- Canvas -->
     <div class="flex-1" @drop="onDrop" @dragover="onDragOver">
       <VueFlow
@@ -90,7 +72,7 @@ function onDrop(event: DragEvent) {
         v-model:edges="store.edges"
         :default-viewport="{ zoom: 1 }"
         fit-view-on-init
-        class="h-full"
+        class="h-full editor-canvas"
       >
         <template #node-action="props">
           <ActionNode v-bind="props" />

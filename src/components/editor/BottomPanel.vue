@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { ref, nextTick, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import JsonEditor from './JsonEditor.vue'
 import { useExecutionStore } from '../../stores/execution'
+
+const { t } = useI18n()
 
 const execution = useExecutionStore()
 const activeTab = ref<'json' | 'logs' | 'variables'>('json')
@@ -40,10 +43,42 @@ const levelColors: Record<string, string> = {
   error: 'text-red-400',
   debug: 'text-gray-400',
 }
+
+// Resize
+const panelHeight = ref(200)
+let resizing = false
+let startY = 0
+let startH = 0
+
+function onResizeStart(e: MouseEvent) {
+  resizing = true
+  startY = e.clientY
+  startH = panelHeight.value
+  document.addEventListener('mousemove', onResizeMove)
+  document.addEventListener('mouseup', onResizeEnd)
+  document.body.style.cursor = 'row-resize'
+  document.body.style.userSelect = 'none'
+}
+
+function onResizeMove(e: MouseEvent) {
+  if (!resizing) return
+  const dy = startY - e.clientY
+  panelHeight.value = Math.max(100, Math.min(500, startH + dy))
+}
+
+function onResizeEnd() {
+  resizing = false
+  document.removeEventListener('mousemove', onResizeMove)
+  document.removeEventListener('mouseup', onResizeEnd)
+  document.body.style.cursor = ''
+  document.body.style.userSelect = ''
+}
 </script>
 
 <template>
-  <div class="bottom-panel" :class="{ collapsed }">
+  <div class="bottom-panel" :class="{ collapsed }" :style="collapsed ? {} : { height: panelHeight + 'px' }">
+    <!-- Resize handle -->
+    <div class="resize-handle" @mousedown="onResizeStart" />
     <!-- Tab bar -->
     <div class="tab-bar">
       <div class="flex items-center gap-1">
@@ -51,19 +86,19 @@ const levelColors: Record<string, string> = {
           :class="['tab-btn', activeTab === 'json' && 'active']"
           @click="activeTab = 'json'; collapsed = false"
         >
-          JSON
+          {{ t('bottomPanel.json') }}
         </button>
         <button
           :class="['tab-btn', activeTab === 'logs' && 'active']"
           @click="activeTab = 'logs'; collapsed = false"
         >
-          日志
+          {{ t('bottomPanel.logs') }}
         </button>
         <button
           :class="['tab-btn', activeTab === 'variables' && 'active']"
           @click="activeTab = 'variables'; collapsed = false"
         >
-          变量
+          {{ t('bottomPanel.variables') }}
         </button>
       </div>
       <button class="collapse-btn" @click="toggleCollapse">
@@ -76,7 +111,7 @@ const levelColors: Record<string, string> = {
       <JsonEditor v-if="activeTab === 'json'" />
 
       <div v-else-if="activeTab === 'logs'" ref="logContainer" class="log-panel">
-        <div v-if="execution.logs.length === 0" class="empty-hint">执行工作流后查看日志</div>
+        <div v-if="execution.logs.length === 0" class="empty-hint">{{ t('bottomPanel.noLogs') }}</div>
         <div v-else class="log-entries">
           <div
             v-for="(entry, i) in execution.logs"
@@ -91,13 +126,13 @@ const levelColors: Record<string, string> = {
       </div>
 
       <div v-else-if="activeTab === 'variables'" class="variables-panel">
-        <div v-if="Object.keys(execution.variables).length === 0" class="empty-hint">执行工作流后查看变量</div>
+        <div v-if="Object.keys(execution.variables).length === 0" class="empty-hint">{{ t('bottomPanel.noVariables') }}</div>
         <table v-else class="var-table">
           <thead>
             <tr>
-              <th>变量名</th>
-              <th>值</th>
-              <th>类型</th>
+              <th>{{ t('bottomPanel.varName') }}</th>
+              <th>{{ t('bottomPanel.varValue') }}</th>
+              <th>{{ t('bottomPanel.varType') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -122,10 +157,26 @@ const levelColors: Record<string, string> = {
   height: 200px;
   min-height: 32px;
   transition: height 0.2s ease;
+  position: relative;
 }
 
 .bottom-panel.collapsed {
-  height: 32px;
+  height: 32px !important;
+}
+
+.resize-handle {
+  position: absolute;
+  top: -2px;
+  left: 0;
+  right: 0;
+  height: 4px;
+  cursor: row-resize;
+  z-index: 20;
+}
+
+.resize-handle:hover {
+  background: var(--color-primary);
+  opacity: 0.5;
 }
 
 .tab-bar {
@@ -201,7 +252,7 @@ const levelColors: Record<string, string> = {
   display: flex;
   gap: 8px;
   padding: 2px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid var(--color-separator-light);
 }
 
 .log-time {
@@ -237,7 +288,7 @@ const levelColors: Record<string, string> = {
 
 .var-table td {
   padding: 4px 8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid var(--color-separator-light);
 }
 
 .var-name {

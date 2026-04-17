@@ -2,6 +2,7 @@
 import { ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import * as monaco from 'monaco-editor'
 import { useWorkflowStore } from '../../stores/workflow'
+import { useSettingsStore } from '../../stores/settings'
 
 // Configure Monaco workers
 self.MonacoEnvironment = {
@@ -20,6 +21,7 @@ self.MonacoEnvironment = {
 }
 
 const store = useWorkflowStore()
+const settings = useSettingsStore()
 const editorContainer = ref<HTMLElement>()
 let editor: monaco.editor.IStandaloneCodeEditor | null = null
 let isUpdatingFromStore = false
@@ -31,7 +33,7 @@ onMounted(() => {
   editor = monaco.editor.create(editorContainer.value, {
     value: JSON.stringify(store.toJSON(), null, 2),
     language: 'json',
-    theme: 'vs-dark',
+    theme: settings.monacoTheme,
     minimap: { enabled: false },
     fontSize: 12,
     fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
@@ -84,6 +86,16 @@ watch(
     }
   },
   { deep: true }
+)
+
+// Theme follow
+watch(
+  () => settings.monacoTheme,
+  (theme) => {
+    if (editor) {
+      monaco.editor.setTheme(theme)
+    }
+  }
 )
 
 onBeforeUnmount(() => {
