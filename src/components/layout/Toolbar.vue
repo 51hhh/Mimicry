@@ -77,3 +77,6 @@ async function runWorkflow() {
     </div>
   </header>
 </template>
+
+<style scoped>
+</style>

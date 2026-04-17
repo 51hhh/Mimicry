@@ -11,7 +11,7 @@ const emit = defineEmits<{
   (e: 'select', id: string): void
 }>()
 
-defineProps<{
+const props = defineProps<{
   activeId: string
 }>()
 
@@ -34,7 +34,9 @@ const bottomItems: ActivityItem[] = [
 ]
 
 function handleClick(item: ActivityItem) {
-  if (item.route) {
+  if (item.id === 'settings' && props.activeId === 'settings') {
+    router.push('/')
+  } else if (item.route) {
     router.push(item.route)
   }
   emit('select', item.id)

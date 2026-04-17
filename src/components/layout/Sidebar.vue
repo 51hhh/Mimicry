@@ -9,6 +9,7 @@ import {
   FileText, Tag, Camera, Table, Pin, Upload,
   Wrench, Globe, Timer, ClipboardList, MessageSquare,
 } from 'lucide-vue-next'
+import { usePanel } from '../../composables/usePanel'
 
 const { t } = useI18n()
 
@@ -18,6 +19,15 @@ defineProps<{
 }>()
 
 const searchQuery = ref('')
+
+const { size: sidebarWidth, onResizeStart } = usePanel({
+  direction: 'horizontal',
+  defaultSize: 260,
+  minSize: 200,
+  maxSize: 500,
+  storageKey: 'mimicry-sidebar-width',
+  invertDelta: true,
+})
 
 interface BlockItem {
   type: string
@@ -106,40 +116,11 @@ function matchesSearch(item: { type: string; action?: string }): boolean {
 
 function onDragStart(e: DragEvent, item: { type: string; action?: string }) {
   if (!e.dataTransfer) return
+  e.dataTransfer.effectAllowed = 'move'
   e.dataTransfer.setData('application/mimicry-node', item.type)
   if (item.action) {
     e.dataTransfer.setData('application/mimicry-action', item.action)
   }
-}
-
-// Resize
-const sidebarWidth = ref(260)
-let resizing = false
-let startX = 0
-let startWidth = 0
-
-function onResizeStart(e: MouseEvent) {
-  resizing = true
-  startX = e.clientX
-  startWidth = sidebarWidth.value
-  document.addEventListener('mousemove', onResizeMove)
-  document.addEventListener('mouseup', onResizeEnd)
-  document.body.style.cursor = 'col-resize'
-  document.body.style.userSelect = 'none'
-}
-
-function onResizeMove(e: MouseEvent) {
-  if (!resizing) return
-  const dx = e.clientX - startX
-  sidebarWidth.value = Math.max(200, Math.min(500, startWidth + dx))
-}
-
-function onResizeEnd() {
-  resizing = false
-  document.removeEventListener('mousemove', onResizeMove)
-  document.removeEventListener('mouseup', onResizeEnd)
-  document.body.style.cursor = ''
-  document.body.style.userSelect = ''
 }
 </script>
 

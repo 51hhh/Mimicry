@@ -1,6 +1,7 @@
 {
   "app": {
-    "name": "Mimicry"
+    "name": "Mimicry",
+    "title": "Mimicry"
   },
   "activity": {
     "workflow": "Workflow",
@@ -84,7 +85,9 @@
     "retryCount": "Retry Count",
     "note": "Note",
     "notePlaceholder": "Node description...",
-    "nodeData": "Node Data (JSON)"
+    "nodeData": "Node Data (JSON)",
+    "matchValuePlaceholder": "Match text or expression",
+    "loopSelectorLabel": "Element Selector"
   },
   "conditionTypes": {
     "exists": "Element Exists",
@@ -113,7 +116,28 @@
     "run": "▶ Run",
     "stop": "⏹ Stop",
     "record": "⏺ Record",
-    "stopRecord": "⏹ Stop Recording"
+    "stopRecord": "⏹ Stop Recording",
+    "toggleSidebar": "Toggle Sidebar",
+    "toggleBottom": "Toggle Bottom Panel",
+    "toggleRight": "Toggle Right Panel",
+    "newWorkflow": "New Workflow"
+  },
+  "shortcut": {
+    "undo": "Undo",
+    "redo": "Redo",
+    "save": "Save",
+    "toggleSidebar": "Toggle Sidebar",
+    "toggleBottom": "Toggle Bottom",
+    "toggleRight": "Toggle Right",
+    "deleteNode": "Delete Node"
+  },
+  "contextMenu": {
+    "copy": "Copy",
+    "paste": "Paste",
+    "disconnect": "Disconnect",
+    "delete": "Delete",
+    "selectAll": "Select All",
+    "fitView": "Fit View"
   },
   "bottomPanel": {
     "json": "JSON",
@@ -141,6 +165,38 @@
     "completed": "Execution completed",
     "failed": "Execution failed",
     "stopped": "Execution stopped by user",
-    "error": "Execution error"
+    "error": "Execution error",
+    "unknownError": "Unknown error"
+  },
+  "update": {
+    "newVersion": "New version",
+    "available": "available",
+    "downloading": "Downloading",
+    "install": "Install Now",
+    "later": "Later"
+  },
+  "canvas": {
+    "title": "Canvas",
+    "zoomIn": "Zoom In",
+    "zoomOut": "Zoom Out",
+    "fitView": "Fit View",
+    "showMinimap": "Show Minimap",
+    "hideMinimap": "Hide Minimap"
+  },
+  "tabBar": {
+    "undo": "Undo (Ctrl+Z)",
+    "redo": "Redo (Ctrl+Y)",
+    "save": "Save (Ctrl+S)",
+    "toggleSidebar": "Toggle Sidebar (Ctrl+B)",
+    "togglePanel": "Toggle Panel (Ctrl+J)",
+    "toggleAuxSidebar": "Toggle Aux Sidebar (Ctrl+Alt+B)",
+    "minimize": "Minimize",
+    "maximize": "Maximize",
+    "restore": "Restore",
+    "close": "Close"
+  },
+  "group": {
+    "defaultLabel": "Group",
+    "newGroup": "New Group"
   }
 }

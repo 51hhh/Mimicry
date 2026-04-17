@@ -26,6 +26,7 @@ const editorContainer = ref<HTMLElement>()
 let editor: monaco.editor.IStandaloneCodeEditor | null = null
 let isUpdatingFromStore = false
 let isUpdatingFromEditor = false
+let debounceTimer: ReturnType<typeof setTimeout> | undefined
 
 onMounted(() => {
   if (!editorContainer.value) return
@@ -47,7 +48,6 @@ onMounted(() => {
   })
 
   // Editor → Store sync (debounced)
-  let debounceTimer: ReturnType<typeof setTimeout>
   editor.onDidChangeModelContent(() => {
     if (isUpdatingFromStore) return
     clearTimeout(debounceTimer)
@@ -99,6 +99,7 @@ watch(
 )
 
 onBeforeUnmount(() => {
+  clearTimeout(debounceTimer)
   editor?.dispose()
   editor = null
 })

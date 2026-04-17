@@ -3,17 +3,27 @@ import { ref, nextTick, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import JsonEditor from './JsonEditor.vue'
 import { useExecutionStore } from '../../stores/execution'
+import { usePanel, usePanelLayout } from '../../composables/usePanel'
 
 const { t } = useI18n()
 
 const execution = useExecutionStore()
 const activeTab = ref<'json' | 'logs' | 'variables'>('json')
-const collapsed = ref(false)
 const logContainer = ref<HTMLElement>()
 
-function toggleCollapse() {
-  collapsed.value = !collapsed.value
-}
+const { size: panelHeight, collapsed, onResizeStart, toggle: toggleCollapse } = usePanel({
+  direction: 'vertical',
+  defaultSize: 200,
+  minSize: 100,
+  maxSize: 500,
+  storageKey: 'mimicry-bottom-height',
+})
+
+// Sync with global layout state
+const { bottomCollapsed, bottomPanelHeight } = usePanelLayout()
+watch(bottomCollapsed, (v) => { collapsed.value = v })
+watch(collapsed, (v) => { bottomCollapsed.value = v })
+watch(panelHeight, (v) => { bottomPanelHeight.value = v }, { immediate: true })
 
 // Auto-scroll logs
 watch(
@@ -42,36 +52,6 @@ const levelColors: Record<string, string> = {
   warn: 'text-amber-400',
   error: 'text-red-400',
   debug: 'text-gray-400',
-}
-
-// Resize
-const panelHeight = ref(200)
-let resizing = false
-let startY = 0
-let startH = 0
-
-function onResizeStart(e: MouseEvent) {
-  resizing = true
-  startY = e.clientY
-  startH = panelHeight.value
-  document.addEventListener('mousemove', onResizeMove)
-  document.addEventListener('mouseup', onResizeEnd)
-  document.body.style.cursor = 'row-resize'
-  document.body.style.userSelect = 'none'
-}
-
-function onResizeMove(e: MouseEvent) {
-  if (!resizing) return
-  const dy = startY - e.clientY
-  panelHeight.value = Math.max(100, Math.min(500, startH + dy))
-}
-
-function onResizeEnd() {
-  resizing = false
-  document.removeEventListener('mousemove', onResizeMove)
-  document.removeEventListener('mouseup', onResizeEnd)
-  document.body.style.cursor = ''
-  document.body.style.userSelect = ''
 }
 </script>
 

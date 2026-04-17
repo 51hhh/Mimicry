@@ -1,6 +1,7 @@
 {
   "app": {
-    "name": "Mimicry"
+    "name": "Mimicry",
+    "title": "Mimicry"
   },
   "activity": {
     "workflow": "工作流",
@@ -84,7 +85,9 @@
     "retryCount": "重试次数",
     "note": "备注",
     "notePlaceholder": "节点说明...",
-    "nodeData": "节点数据 (JSON)"
+    "nodeData": "节点数据 (JSON)",
+    "matchValuePlaceholder": "匹配文本或表达式",
+    "loopSelectorLabel": "元素选择器"
   },
   "conditionTypes": {
     "exists": "元素存在",
@@ -113,7 +116,28 @@
     "run": "▶ 运行",
     "stop": "⏹ 停止",
     "record": "⏺ 录制",
-    "stopRecord": "⏹ 停止录制"
+    "stopRecord": "⏹ 停止录制",
+    "toggleSidebar": "切换侧边栏",
+    "toggleBottom": "切换底部面板",
+    "toggleRight": "切换右侧面板",
+    "newWorkflow": "新建工作流"
+  },
+  "shortcut": {
+    "undo": "撤销",
+    "redo": "重做",
+    "save": "保存",
+    "toggleSidebar": "切换侧栏",
+    "toggleBottom": "切换底栏",
+    "toggleRight": "切换右侧栏",
+    "deleteNode": "删除节点"
+  },
+  "contextMenu": {
+    "copy": "复制",
+    "paste": "粘贴",
+    "disconnect": "断开连接",
+    "delete": "删除",
+    "selectAll": "全选",
+    "fitView": "适应视图"
   },
   "bottomPanel": {
     "json": "JSON",
@@ -141,6 +165,38 @@
     "completed": "执行完成",
     "failed": "执行失败",
     "stopped": "用户停止执行",
-    "error": "执行异常"
+    "error": "执行异常",
+    "unknownError": "未知错误"
+  },
+  "update": {
+    "newVersion": "新版本",
+    "available": "可用",
+    "downloading": "下载中",
+    "install": "立即更新",
+    "later": "稍后"
+  },
+  "canvas": {
+    "title": "画布",
+    "zoomIn": "放大",
+    "zoomOut": "缩小",
+    "fitView": "适应",
+    "showMinimap": "显示缩略图",
+    "hideMinimap": "隐藏缩略图"
+  },
+  "tabBar": {
+    "undo": "撤销 (Ctrl+Z)",
+    "redo": "重做 (Ctrl+Y)",
+    "save": "保存 (Ctrl+S)",
+    "toggleSidebar": "切换主侧栏 (Ctrl+B)",
+    "togglePanel": "切换面板 (Ctrl+J)",
+    "toggleAuxSidebar": "切换辅助侧栏 (Ctrl+Alt+B)",
+    "minimize": "最小化",
+    "maximize": "最大化",
+    "restore": "还原",
+    "close": "关闭"
+  },
+  "group": {
+    "defaultLabel": "分组",
+    "newGroup": "新分组"
   }
 }

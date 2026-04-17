@@ -2,6 +2,21 @@ import { defineStore } from "pinia";
 import { ref, shallowRef } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 
+interface ExecutionStatusResult {
+  running: boolean;
+  step?: number;
+  total?: number;
+  currentNodeId?: string;
+  error?: string;
+  variables?: Record<string, unknown>;
+}
+
+interface ExecutionResult {
+  success: boolean;
+  error?: string;
+  variables?: Record<string, unknown>;
+}
+
 export interface LogEntry {
   time: string;
   level: "info" | "warn" | "error" | "debug";
@@ -54,12 +69,13 @@ export const useExecutionStore = defineStore("execution", () => {
 
   async function pollStatus() {
     try {
-      const result: any = await invoke("workflow_execution_status");
+      const result = await invoke<ExecutionStatusResult>("workflow_execution_status");
       const prevNodeId = currentNodeId.value;
 
       running.value = result.running;
       step.value = result.step || 0;
       total.value = result.total || 0;
+      currentNodeId.value = result.currentNodeId || null;
       error.value = result.error || null;
       variables.value = result.variables || {};
 
@@ -72,16 +88,12 @@ export const useExecutionStore = defineStore("execution", () => {
         }
       }
 
-      if (result.error) {
-        addLog("error", result.error, currentNodeId.value || undefined);
-      }
-
       if (!result.running) {
         stopPolling();
         if (result.error) {
-          addLog("error", `执行失败: ${result.error}`);
+          addLog("error", `execution.failed: ${result.error}`);
         } else {
-          addLog("info", "执行完成");
+          addLog("info", "execution.completed");
         }
       }
     } catch (e) {
@@ -101,31 +113,31 @@ export const useExecutionStore = defineStore("execution", () => {
     }
   }
 
-  async function execute(workflowJson: any) {
+  async function execute(workflowJson: { name?: string; nodes: unknown[]; edges: unknown[] }) {
     reset();
     running.value = true;
-    addLog("info", `开始执行工作流: ${workflowJson.name || "未命名"}`);
+    addLog("info", `execution.start: ${workflowJson.name || "Untitled"}`);
     startPolling();
 
     try {
-      const result: any = await invoke("workflow_execute", { workflow: workflowJson });
+      const result = await invoke<ExecutionResult>("workflow_execute", { workflow: workflowJson });
       running.value = false;
       stopPolling();
 
       if (result.success) {
-        addLog("info", "工作流执行成功");
+        addLog("info", "execution.success");
         variables.value = result.variables || {};
       } else {
-        error.value = result.error || "未知错误";
-        addLog("error", `工作流执行失败: ${error.value}`);
+        error.value = result.error || "execution.unknownError";
+        addLog("error", `execution.failed: ${error.value}`);
       }
 
       return result;
-    } catch (e: any) {
+    } catch (e: unknown) {
       running.value = false;
       stopPolling();
       error.value = String(e);
-      addLog("error", `执行异常: ${e}`);
+      addLog("error", `execution.exception: ${e}`);
       throw e;
     }
   }
@@ -135,9 +147,9 @@ export const useExecutionStore = defineStore("execution", () => {
       await invoke("workflow_stop_execution");
       running.value = false;
       stopPolling();
-      addLog("warn", "用户停止执行");
-    } catch (e: any) {
-      addLog("error", `停止失败: ${e}`);
+      addLog("warn", "execution.stopped");
+    } catch (e: unknown) {
+      addLog("error", `execution.stopFailed: ${e}`);
     }
   }
 
