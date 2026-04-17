@@ -1,0 +1,362 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions: write-all
+
+env:
+  CARGO_INCREMENTAL: 0
+  RUST_BACKTRACE: short
+
+concurrency:
+  group: '${{ github.workflow }}-${{ github.ref }}'
+  cancel-in-progress: false
+
+jobs:
+  check-version:
+    name: Check Tag & Version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify tag is from main
+        run: |
+          TAG_COMMIT=$(git rev-list -n 1 ${GITHUB_REF##*/})
+          if ! git rev-list origin/main | grep -q "$TAG_COMMIT"; then
+            echo "❌ Tag is not from main branch"
+            exit 1
+          fi
+          echo "✅ Tag is from main"
+
+      - name: Verify version consistency
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          PKG_VERSION="v$(jq -r .version package.json)"
+          if [[ "$TAG" != "$PKG_VERSION" ]]; then
+            echo "❌ Tag $TAG != package.json $PKG_VERSION"
+            exit 1
+          fi
+          echo "✅ Version consistent: $TAG"
+
+  # ── Build Python Sidecar ──────────────────────────────────────
+  build-sidecar:
+    name: Sidecar ${{ matrix.os }}-${{ matrix.arch }}
+    needs: [check-version]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Windows
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            arch: x64
+            sidecar-name: mimicry-sidecar-x86_64-pc-windows-msvc.exe
+            pyinstaller-args: ''
+          - os: windows-latest
+            target: aarch64-pc-windows-msvc
+            arch: arm64
+            sidecar-name: mimicry-sidecar-aarch64-pc-windows-msvc.exe
+            pyinstaller-args: ''
+          # Linux x64
+          - os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            arch: x64
+            sidecar-name: mimicry-sidecar-x86_64-unknown-linux-gnu
+            pyinstaller-args: ''
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install sidecar dependencies
+        working-directory: sidecar
+        run: |
+          pip install pyinstaller
+          pip install -r requirements.txt
+
+      - name: Build sidecar
+        working-directory: sidecar
+        run: |
+          pyinstaller --onefile --name mimicry-sidecar ${{ matrix.pyinstaller-args }} main.py
+
+      - name: Rename sidecar binary
+        shell: bash
+        run: |
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            mv sidecar/dist/mimicry-sidecar.exe "sidecar/dist/${{ matrix.sidecar-name }}"
+          else
+            mv sidecar/dist/mimicry-sidecar "sidecar/dist/${{ matrix.sidecar-name }}"
+          fi
+
+      - name: Upload sidecar artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sidecar-${{ matrix.target }}
+          path: sidecar/dist/${{ matrix.sidecar-name }}
+
+  # ── Build Tauri (Win + Linux x64) ────────────────────────────
+  release:
+    name: Build ${{ matrix.target }}
+    needs: [check-version, build-sidecar]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os: windows-latest
+            target: aarch64-pc-windows-msvc
+          - os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download sidecar
+        uses: actions/download-artifact@v4
+        with:
+          name: sidecar-${{ matrix.target }}
+          path: src-tauri/binaries/
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: 'v1-rust'
+          key: 'release-${{ matrix.os }}-${{ matrix.target }}'
+          workspaces: src-tauri -> target
+          cache-all-crates: true
+
+      - name: Install Linux dependencies
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev \
+            librsvg2-dev patchelf libfuse2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: ${{ runner.os }}-pnpm-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Tauri
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Release ${{ github.ref_name }}'
+          releaseBody: 'Draft release, will be updated later.'
+          releaseDraft: true
+          prerelease: ${{ contains(github.ref_name, '-rc') }}
+          tauriScript: pnpm tauri
+          includeUpdaterJson: true
+          args: --target ${{ matrix.target }}
+
+  # ── Build Linux ARM (cross-compile) ──────────────────────────
+  release-linux-arm:
+    name: Linux ARM ${{ matrix.arch }}
+    needs: [check-version, build-sidecar]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-unknown-linux-gnu
+            arch: arm64
+            sidecar-target: x86_64-unknown-linux-gnu
+          - target: armv7-unknown-linux-gnueabihf
+            arch: armhf
+            sidecar-target: x86_64-unknown-linux-gnu
+
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Note: ARM sidecar needs to be cross-compiled separately
+      # For now we use the x64 sidecar as a placeholder
+      # TODO: Add ARM sidecar cross-compilation with QEMU/Docker
+      - name: Download sidecar (x64 placeholder)
+        uses: actions/download-artifact@v4
+        with:
+          name: sidecar-x86_64-unknown-linux-gnu
+          path: src-tauri/binaries/
+
+      - name: Rename sidecar for target
+        run: |
+          mv src-tauri/binaries/mimicry-sidecar-x86_64-unknown-linux-gnu \
+             src-tauri/binaries/mimicry-sidecar-${{ matrix.target }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: 'v1-rust'
+          key: 'release-linux-${{ matrix.target }}'
+          workspaces: src-tauri -> target
+          cache-all-crates: true
+
+      - name: Setup cross-compile sources
+        run: |
+          cat > /tmp/sources.list << EOF
+          deb [arch=amd64,i386] http://archive.ubuntu.com/ubuntu jammy main multiverse universe restricted
+          deb [arch=amd64,i386] http://archive.ubuntu.com/ubuntu jammy-security main multiverse universe restricted
+          deb [arch=amd64,i386] http://archive.ubuntu.com/ubuntu jammy-updates main multiverse universe restricted
+          deb [arch=amd64,i386] http://archive.ubuntu.com/ubuntu jammy-backports main multiverse universe restricted
+          deb [arch=armhf,arm64] http://ports.ubuntu.com/ubuntu-ports jammy main multiverse universe restricted
+          deb [arch=armhf,arm64] http://ports.ubuntu.com/ubuntu-ports jammy-security main multiverse universe restricted
+          deb [arch=armhf,arm64] http://ports.ubuntu.com/ubuntu-ports jammy-updates main multiverse universe restricted
+          deb [arch=armhf,arm64] http://ports.ubuntu.com/ubuntu-ports jammy-backports main multiverse universe restricted
+          EOF
+          sudo mv /etc/apt/sources.list /etc/apt/sources.list.default
+          sudo mv /tmp/sources.list /etc/apt/sources.list
+          sudo dpkg --add-architecture ${{ matrix.arch }}
+          sudo apt-get update
+
+      - name: Install cross-compile dependencies
+        run: |
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev:${{ matrix.arch }} \
+            libappindicator3-dev:${{ matrix.arch }} \
+            librsvg2-dev:${{ matrix.arch }} \
+            libssl-dev:${{ matrix.arch }} \
+            patchelf:${{ matrix.arch }}
+
+      - name: Install aarch64 toolchain
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+
+      - name: Install armv7 toolchain
+        if: matrix.target == 'armv7-unknown-linux-gnueabihf'
+        run: sudo apt-get install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build for Linux ARM
+        run: |
+          export PKG_CONFIG_ALLOW_CROSS=1
+          if [ "${{ matrix.target }}" == "aarch64-unknown-linux-gnu" ]; then
+            export PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig/:$PKG_CONFIG_PATH
+            export PKG_CONFIG_SYSROOT_DIR=/usr/aarch64-linux-gnu/
+          elif [ "${{ matrix.target }}" == "armv7-unknown-linux-gnueabihf" ]; then
+            export PKG_CONFIG_PATH=/usr/lib/arm-linux-gnueabihf/pkgconfig/:$PKG_CONFIG_PATH
+            export PKG_CONFIG_SYSROOT_DIR=/usr/arm-linux-gnueabihf/
+          fi
+          pnpm tauri build --target ${{ matrix.target }}
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
+      - name: Get version
+        run: |
+          echo "VERSION=$(jq -r .version package.json)" >> $GITHUB_ENV
+
+      - name: Upload deb + rpm
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.VERSION }}
+          name: 'Release v${{ env.VERSION }}'
+          body: 'See release notes for detailed changelog.'
+          token: ${{ secrets.GITHUB_TOKEN }}
+          prerelease: ${{ contains(github.ref_name, '-rc') }}
+          files: |
+            src-tauri/target/${{ matrix.target }}/release/bundle/deb/*.deb
+            src-tauri/target/${{ matrix.target }}/release/bundle/rpm/*.rpm
+
+  # ── Update Release Notes ─────────────────────────────────────
+  update-release:
+    name: Update Release Notes
+    needs: [release, release-linux-arm]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract changelog and publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VER="${TAG#v}"
+          BUILDTIME="$(TZ=Asia/Shanghai date)"
+          DL="https://github.com/${{ github.repository }}/releases/download/${TAG}"
+
+          # Extract changelog section for current version
+          awk "/^## ${TAG//./\\.}/{found=1; next} /^## v/{if(found) exit} found" CHANGELOG.md > release_notes.txt
+          if [ ! -s release_notes.txt ]; then
+            echo "See CHANGELOG.md for details." > release_notes.txt
+          fi
+
+          CHANGELOG=$(cat release_notes.txt)
+
+          cat > release_body.md <<ENDOFBODY
+          ${CHANGELOG}
+
+          ## 下载
+
+          ### Windows
+          #### 正常版本(推荐)
+          - [64位(常用)](${DL}/Mimicry_${VER}_x64-setup.exe) | [ARM64](${DL}/Mimicry_${VER}_arm64-setup.exe)
+
+          ### Linux
+          #### DEB包(Debian系) 使用 apt ./路径 安装
+          - [64位](${DL}/mimicry_${VER}_amd64.deb) | [ARM64](${DL}/mimicry_${VER}_arm64.deb) | [ARMv7](${DL}/mimicry_${VER}_armhf.deb)
+
+          #### RPM包(Redhat系) 使用 dnf ./路径 安装
+          - [64位](${DL}/mimicry-${VER}-1.x86_64.rpm) | [ARM64](${DL}/mimicry-${VER}-1.aarch64.rpm) | [ARMv7](${DL}/mimicry-${VER}-1.armhfp.rpm)
+
+          ---
+          Built at ${BUILDTIME}
+          ENDOFBODY
+
+          gh release edit "${TAG}" \
+            --repo "${{ github.repository }}" \
+            --title "Release ${TAG}" \
+            --notes-file release_body.md \
+            --draft=false \
+            --prerelease=${{ contains(github.ref_name, '-rc') }}

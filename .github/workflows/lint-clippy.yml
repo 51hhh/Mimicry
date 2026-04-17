@@ -1,0 +1,63 @@
+name: Clippy Lint
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  clippy:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Check src-tauri changes
+        if: github.event_name != 'workflow_dispatch'
+        id: check_changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            rust:
+              - 'src-tauri/**'
+
+      - name: Skip if no Rust changes
+        if: github.event_name != 'workflow_dispatch' && steps.check_changes.outputs.rust != 'true'
+        run: echo "No src-tauri changes, skipping clippy."
+
+      - name: Checkout
+        if: github.event_name == 'workflow_dispatch' || steps.check_changes.outputs.rust == 'true'
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        if: github.event_name == 'workflow_dispatch' || steps.check_changes.outputs.rust == 'true'
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+          targets: ${{ matrix.target }}
+
+      - name: Rust Cache
+        if: github.event_name == 'workflow_dispatch' || steps.check_changes.outputs.rust == 'true'
+        uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: 'v1-rust'
+          key: 'clippy-${{ matrix.os }}-${{ matrix.target }}'
+          workspaces: src-tauri -> target
+          cache-all-crates: true
+
+      - name: Install Linux dependencies
+        if: (github.event_name == 'workflow_dispatch' || steps.check_changes.outputs.rust == 'true') && matrix.os == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev \
+            librsvg2-dev patchelf
+
+      - name: Run Clippy
+        if: github.event_name == 'workflow_dispatch' || steps.check_changes.outputs.rust == 'true'
+        working-directory: ./src-tauri
+        run: cargo clippy --all-targets --all-features -- -D warnings

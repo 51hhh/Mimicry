@@ -1,0 +1,60 @@
+name: Frontend Check
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check frontend changes
+        if: github.event_name != 'workflow_dispatch'
+        id: check_changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            frontend:
+              - 'src/**'
+              - '**/*.ts'
+              - '**/*.vue'
+              - '**/*.css'
+              - '**/*.json'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'eslint.config.js'
+              - 'tsconfig.json'
+              - 'vite.config.*'
+
+      - name: Skip if no frontend changes
+        if: github.event_name != 'workflow_dispatch' && steps.check_changes.outputs.frontend != 'true'
+        run: echo "No frontend changes, skipping."
+
+      - name: Setup pnpm
+        if: github.event_name == 'workflow_dispatch' || steps.check_changes.outputs.frontend == 'true'
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        if: github.event_name == 'workflow_dispatch' || steps.check_changes.outputs.frontend == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        if: github.event_name == 'workflow_dispatch' || steps.check_changes.outputs.frontend == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Prettier check
+        if: github.event_name == 'workflow_dispatch' || steps.check_changes.outputs.frontend == 'true'
+        run: pnpm format:check
+
+      - name: ESLint
+        if: github.event_name == 'workflow_dispatch' || steps.check_changes.outputs.frontend == 'true'
+        run: pnpm lint
+
+      - name: TypeScript typecheck
+        if: github.event_name == 'workflow_dispatch' || steps.check_changes.outputs.frontend == 'true'
+        run: pnpm typecheck
