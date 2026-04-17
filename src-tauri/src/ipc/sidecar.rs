@@ -48,9 +48,36 @@ impl Sidecar {
         self.child = Some(child);
 
         // Verify with ping
-        let resp = self.call("ping", None).await?;
+        let resp = match self.call("ping", None).await {
+            Ok(resp) => resp,
+            Err(err) => {
+                self.stop().await;
+                return Err(err);
+            }
+        };
         info!("Sidecar ready: {:?}", resp);
         Ok(())
+    }
+
+    pub async fn ensure_started(&mut self) -> Result<(), AppError> {
+        if self.child.is_some() {
+            return Ok(());
+        }
+
+        let mut last_error = String::new();
+        for python in ["python", "python3"] {
+            match self.start(python).await {
+                Ok(_) => return Ok(()),
+                Err(err) => {
+                    last_error = err.to_string();
+                }
+            }
+        }
+
+        Err(AppError::Sidecar(format!(
+            "Failed to start sidecar with python/python3: {}",
+            last_error
+        )))
     }
 
     pub async fn call(&mut self, method: &str, params: Option<serde_json::Value>) -> Result<serde_json::Value, AppError> {

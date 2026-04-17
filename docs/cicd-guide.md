@@ -2,77 +2,79 @@
 
 ## 概述
 
+当前已整合为**单一流水线**：` .github/workflows/pipeline.yml `。
+
 | 流水线 | 文件 | 触发条件 | 用途 |
 |--------|------|----------|------|
-| Release | `release.yml` | `push tags: v*.*.*` | 正式发布，多平台交叉编译 |
-| CI Check | `build.yml` | PR to main / 手动 | 编译验证 + 测试 |
-| Frontend Check | `frontend-check.yml` | PR（路径过滤） | Prettier + ESLint + TypeScript |
-| Clippy Lint | `lint-clippy.yml` | PR（路径过滤） | Rust clippy 静态分析 |
+| Pipeline | `pipeline.yml` | `push` 到 `main` | 统一执行检查/测试；若满足发布条件则自动构建并发布 release |
 
-## Release 流水线架构
+## Pipeline 架构（方案 A）
 
 ```
-push tag v*.*.*
-     │
-     ▼
-┌─────────────┐
-│ check-version│  ← 校验 tag 来自 main + 版本号一致
-└──────┬──────┘
-       │
-       ▼
-┌─────────────┐
-│build-sidecar│  Win x64/ARM64 + Linux x64 (PyInstaller)
-└──────┬──────┘
-       │
-       ├───────────────────┐
-       ▼                   ▼
-┌─────────────┐   ┌──────────────────┐
-│   release   │   │ release-linux-arm│
-│ Win x64     │   │ ARM64 (deb+rpm)  │
-│ Win ARM64   │   │ ARMv7 (deb+rpm)  │
-│ Linux x64   │   └──────────────────┘
-│ (NSIS/deb/  │
-│  AppImage)  │
-└──────┬──────┘
-       │
-       ▼
-┌─────────────────┐
-│ update-release  │  ← 提取 Changelog，Draft → Publish
-└─────────────────┘
+push main
+   │
+   ▼
+┌────────────┐
+│  prepare   │  ← 校验三方版本一致性 + 检测当前commit是否被发布tag指向
+└─────┬──────┘
+      │
+      ▼
+┌────────────┐
+│  quality   │  ← typecheck + sidecar pytest + rust clippy/test
+└─────┬──────┘
+      │
+      ├─────────────── 无发布tag / 无绑定changelog
+      │                 └─ 只输出检查结果并结束
+      │
+      └─────────────── 有发布tag 且 changelog绑定通过
+                        ▼
+                 ┌───────────────┐
+                 │ build-sidecar │
+                 └──────┬────────┘
+                        ▼
+                 ┌───────────────┐
+                 │    release    │  ← tauri build + draft release
+                 └──────┬────────┘
+                        ▼
+                 ┌───────────────┐
+                 │ update-release│  ← 从CHANGELOG提取版本段落并发布
+                 └───────────────┘
 ```
 
-### 构建矩阵
+## 发布判定规则
 
-| Job | Target | Runner | 产物 |
-|-----|--------|--------|------|
-| release | x86_64-pc-windows-msvc | windows-latest | NSIS |
-| release | aarch64-pc-windows-msvc | windows-latest | NSIS |
-| release | x86_64-unknown-linux-gnu | ubuntu-22.04 | deb + AppImage |
-| release-linux-arm | aarch64-unknown-linux-gnu | ubuntu-22.04 | deb + rpm |
-| release-linux-arm | armv7-unknown-linux-gnueabihf | ubuntu-22.04 | deb + rpm |
+Pipeline 会在 `prepare` 阶段进行以下判定：
 
-## 发布步骤
+1. `package.json`、`src-tauri/Cargo.toml`、`src-tauri/tauri.conf.json` 三方版本号必须一致
+2. 当前 `push` 的 commit 必须被语义化 tag 指向（如 `v0.1.0`、`v0.2.0-rc1`）
+3. `CHANGELOG.md` 必须存在同名标题：`## vX.Y.Z`
 
-### 1. 更新 CHANGELOG.md
+只有全部通过，才会进入 release 相关 job。
+
+## 发布步骤（人工操作）
+
+### 1) 更新 CHANGELOG
 
 ```markdown
 ## v0.x.x
 
-### 🚀 新功能
-- 功能描述
+### Added
+- ...
 
-### 🐞 修复
-- 修复描述
+### Fixed
+- ...
 ```
 
-### 2. 同步版本号
+> 标题必须与 tag 严格同名。
 
-三个文件中的版本号必须一致：
-- `package.json` → `"version": "0.x.x"`
-- `src-tauri/tauri.conf.json` → `"version": "0.x.x"`
-- `src-tauri/Cargo.toml` → `version = "0.x.x"`
+### 2) 同步版本号
 
-### 3. 提交并推送 Tag
+确保以下三个文件一致：
+- `package.json`
+- `src-tauri/Cargo.toml`
+- `src-tauri/tauri.conf.json`
+
+### 3) 推送 main 与 tag
 
 ```bash
 git add -A
@@ -82,28 +84,25 @@ git tag v0.x.x
 git push origin v0.x.x
 ```
 
-Tag 包含 `-rc` 后缀（如 `v0.2.0-rc1`）时自动标记为 prerelease。
+`-rc` 后缀会自动标记为 prerelease。
 
-## CI Check 流水线
+## 质量门槛（quality job）
 
-PR 或手动触发时运行：
-- Windows x64 + Ubuntu x64 双平台验证
-- `pnpm typecheck` + `pnpm lint` 前端检查
-- `pytest sidecar/tests/` Python 测试
-- `tauri-action` 构建但不创建 release
-- Rust 编译缓存（`Swatinem/rust-cache`）
+- `pnpm install --frozen-lockfile`
+- `pnpm typecheck`
+- `python -m pytest tests/ -v`（`sidecar/`）
+- `cargo clippy --all-targets --all-features -- -D warnings`（`src-tauri/`）
+- `cargo test --all-targets --all-features`（`src-tauri/`）
 
-## Frontend Check 流水线
+## Node 20 迁移预防
 
-PR 时自动检测前端文件变更（`src/**`, `*.vue`, `*.ts` 等），仅在有变更时运行：
-- Prettier 格式检查
-- ESLint 代码规范
-- TypeScript 类型检查
+为了避免 GitHub Actions Node 20 退役影响，pipeline 已设置：
 
-## Clippy Lint 流水线
+```yaml
+FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+```
 
-PR 时自动检测 `src-tauri/` 变更，仅在有 Rust 代码变更时运行：
-- `cargo clippy` 静态分析（Windows + Linux）
+并升级了关键 action 的主版本（`checkout` / `setup-node` / `setup-python`）。
 
 ## 自动更新
 

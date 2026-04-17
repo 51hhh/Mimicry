@@ -18,6 +18,7 @@ dist-ssr
 .github/*
 !.github/workflows/
 !.github/workflows/**
+!.github/PULL_REQUEST_TEMPLATE.md
 ~/.tauri/*
 .idea
 .DS_Store
@@ -28,3 +29,11 @@ dist-ssr
 *.sw?
 
 *.pyc
+__pycache__/
+
+# Database
+*.db
+
+# Sidecar build artifacts
+sidecar/build/
+sidecar/dist/
