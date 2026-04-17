@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { Handle, Position } from '@vue-flow/core'
+import { computed } from 'vue'
+import { useExecutionStore } from '../../stores/execution'
 
-defineProps<{
+const props = defineProps<{
+  id: string
   data: {
     loopType: string
     count?: number
@@ -10,10 +13,13 @@ defineProps<{
     selector?: string
   }
 }>()
+
+const execution = useExecutionStore()
+const nodeStatus = computed(() => execution.getNodeStatus(props.id))
 </script>
 
 <template>
-  <div class="node-loop">
+  <div class="node-loop" :class="`status-${nodeStatus}`">
     <div class="node-header bg-purple-600">LOOP {{ data.loopType }}</div>
     <div class="node-body">
       <div v-if="data.count" class="node-field">× {{ data.count }}</div>

@@ -11,9 +11,11 @@ import { useWorkflowStore } from '../stores/workflow'
 import ActionNode from '../components/nodes/ActionNode.vue'
 import ConditionNode from '../components/nodes/ConditionNode.vue'
 import LoopNode from '../components/nodes/LoopNode.vue'
+import GroupNode from '../components/nodes/GroupNode.vue'
+import PropertyPanel from '../components/editor/PropertyPanel.vue'
 
 const store = useWorkflowStore()
-const { onConnect, addEdges, onPaneReady } = useVueFlow()
+const { onConnect, addEdges, onPaneReady, onNodeClick, onPaneClick } = useVueFlow()
 
 onConnect((params) => {
   addEdges([params])
@@ -21,6 +23,14 @@ onConnect((params) => {
 
 onPaneReady((instance) => {
   instance.fitView()
+})
+
+onNodeClick(({ node }) => {
+  store.selectNode(node.id)
+})
+
+onPaneClick(() => {
+  store.selectNode(null)
 })
 
 function onDragOver(event: DragEvent) {
@@ -41,9 +51,10 @@ function onDrop(event: DragEvent) {
   }
 
   const dataMap: Record<string, Record<string, unknown>> = {
-    action: { action: 'CLICK', selector: '' },
+    action: { action: 'Click', selector: '' },
     condition: { condition: 'exists', selector: '' },
     loop: { loopType: 'count', count: 5 },
+    group: { label: '新分组', color: '#64748b' },
   }
 
   store.addNode(type, position, dataMap[type] || {})
@@ -60,6 +71,7 @@ function onDrop(event: DragEvent) {
           { type: 'action', label: '动作', color: 'bg-blue-600' },
           { type: 'condition', label: '条件', color: 'bg-amber-600' },
           { type: 'loop', label: '循环', color: 'bg-purple-600' },
+          { type: 'group', label: '分组', color: 'bg-slate-600' },
         ]"
         :key="item.type"
         class="flex items-center gap-2 p-2 rounded cursor-grab border border-[var(--color-border)] hover:border-[var(--color-accent)]"
@@ -89,10 +101,16 @@ function onDrop(event: DragEvent) {
         <template #node-loop="props">
           <LoopNode v-bind="props" />
         </template>
+        <template #node-group="props">
+          <GroupNode v-bind="props" />
+        </template>
         <Background />
         <Controls />
         <MiniMap />
       </VueFlow>
     </div>
+
+    <!-- Property Panel -->
+    <PropertyPanel />
   </div>
 </template>

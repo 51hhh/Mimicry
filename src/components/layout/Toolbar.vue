@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import { ref } from "vue";
-import { invoke } from "@tauri-apps/api/core";
 import { useBrowserStore } from "../../stores/browser";
 import { useWorkflowStore } from "../../stores/workflow";
+import { useExecutionStore } from "../../stores/execution";
 
 const browser = useBrowserStore();
 const workflow = useWorkflowStore();
-const executing = ref(false);
+const execution = useExecutionStore();
 
 async function toggleRecording() {
   if (browser.recording) {
@@ -20,19 +19,15 @@ async function toggleRecording() {
 }
 
 async function runWorkflow() {
-  if (executing.value) {
-    await invoke("workflow_stop_execution");
-    executing.value = false;
+  if (execution.running) {
+    await execution.stop();
     return;
   }
   const workflowJson = workflow.toJSON();
-  executing.value = true;
   try {
-    await invoke("workflow_execute", { workflow: workflowJson });
+    await execution.execute(workflowJson);
   } catch (e) {
     console.error("Workflow execution failed:", e);
-  } finally {
-    executing.value = false;
   }
 }
 </script>
@@ -54,14 +49,17 @@ async function runWorkflow() {
     <div class="flex items-center gap-2">
       <button
         class="rounded px-3 py-1 text-sm"
-        :class="executing
+        :class="execution.running
           ? 'bg-orange-600 text-white'
           : 'border border-[var(--color-border)] hover:bg-white/5'"
         :disabled="!browser.connected"
         @click="runWorkflow"
       >
-        {{ executing ? '⏹ Stop' : '▶ Run' }}
+        {{ execution.running ? '⏹ Stop' : '▶ Run' }}
       </button>
+      <span v-if="execution.running" class="text-xs text-[var(--color-text-muted)]">
+        {{ execution.step }}/{{ execution.total }}
+      </span>
       <button
         class="rounded px-3 py-1 text-sm"
         :class="browser.recording

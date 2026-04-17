@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { Handle, Position } from '@vue-flow/core'
+import { computed } from 'vue'
+import { useExecutionStore } from '../../stores/execution'
 
-defineProps<{
+const props = defineProps<{
+  id: string
   data: {
     action: string
     selector?: string
@@ -9,10 +12,13 @@ defineProps<{
     url?: string
   }
 }>()
+
+const execution = useExecutionStore()
+const nodeStatus = computed(() => execution.getNodeStatus(props.id))
 </script>
 
 <template>
-  <div class="node-action">
+  <div class="node-action" :class="`status-${nodeStatus}`">
     <div class="node-header bg-blue-600">{{ data.action || 'Action' }}</div>
     <div class="node-body">
       <div v-if="data.selector" class="node-field">

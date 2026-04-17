@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { ref, shallowRef } from "vue";
+import { ref, shallowRef, computed } from "vue";
 import type { Node, Edge } from "@vue-flow/core";
 
 export const useWorkflowStore = defineStore("workflow", () => {
@@ -7,6 +7,22 @@ export const useWorkflowStore = defineStore("workflow", () => {
   const name = ref("Untitled Workflow");
   const nodes = shallowRef<Node[]>([]);
   const edges = shallowRef<Edge[]>([]);
+  const selectedNodeId = ref<string | null>(null);
+
+  const selectedNode = computed(() => {
+    if (!selectedNodeId.value) return null;
+    return nodes.value.find((n) => n.id === selectedNodeId.value) || null;
+  });
+
+  function selectNode(nodeId: string | null) {
+    selectedNodeId.value = nodeId;
+  }
+
+  function updateNodeData(nodeId: string, data: Record<string, unknown>) {
+    nodes.value = nodes.value.map((n) =>
+      n.id === nodeId ? { ...n, data: { ...n.data, ...data } } : n
+    );
+  }
 
   function addNode(type: string, position: { x: number; y: number }, data: Record<string, unknown> = {}) {
     const nodeId = `node_${Date.now()}`;
@@ -60,14 +76,50 @@ export const useWorkflowStore = defineStore("workflow", () => {
 
   function toJSON() {
     return {
+      id: id.value,
       name: name.value,
       nodes: nodes.value.map((n) => ({
         id: n.id,
         type: n.type || "action",
-        ...n.data,
+        position: n.position,
+        data: n.data,
+      })),
+      edges: edges.value.map((e) => ({
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        sourceHandle: e.sourceHandle,
+        targetHandle: e.targetHandle,
+        label: e.label,
       })),
     };
   }
 
-  return { id, name, nodes, edges, addNode, removeNode, clear, importRecordedNodes, toJSON };
+  function fromJSON(data: { name?: string; nodes?: any[]; edges?: any[] }) {
+    if (data.name) name.value = data.name;
+    if (data.nodes) {
+      nodes.value = data.nodes.map((n: any) => ({
+        id: n.id,
+        type: n.type || "action",
+        position: n.position || { x: 0, y: 0 },
+        data: n.data || {},
+      }));
+    }
+    if (data.edges) {
+      edges.value = data.edges.map((e: any) => ({
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        sourceHandle: e.sourceHandle,
+        targetHandle: e.targetHandle,
+        label: e.label,
+      }));
+    }
+  }
+
+  return {
+    id, name, nodes, edges,
+    selectedNodeId, selectedNode, selectNode, updateNodeData,
+    addNode, removeNode, clear, importRecordedNodes, toJSON, fromJSON,
+  };
 });

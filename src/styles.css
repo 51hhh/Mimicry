@@ -19,3 +19,22 @@ html, body, #app {
   color: var(--color-text);
   font-family: Inter, system-ui, -apple-system, sans-serif;
 }
+
+/* Node execution status */
+.status-running {
+  box-shadow: 0 0 0 2px #3b82f6, 0 0 12px rgba(59, 130, 246, 0.4);
+  animation: pulse-running 1.5s ease-in-out infinite;
+}
+
+.status-success {
+  box-shadow: 0 0 0 2px #22c55e;
+}
+
+.status-error {
+  box-shadow: 0 0 0 2px #ef4444, 0 0 8px rgba(239, 68, 68, 0.3);
+}
+
+@keyframes pulse-running {
+  0%, 100% { box-shadow: 0 0 0 2px #3b82f6, 0 0 12px rgba(59, 130, 246, 0.4); }
+  50% { box-shadow: 0 0 0 2px #3b82f6, 0 0 20px rgba(59, 130, 246, 0.6); }
+}

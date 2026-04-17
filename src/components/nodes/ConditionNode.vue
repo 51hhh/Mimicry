@@ -1,16 +1,22 @@
 <script setup lang="ts">
 import { Handle, Position } from '@vue-flow/core'
+import { computed } from 'vue'
+import { useExecutionStore } from '../../stores/execution'
 
-defineProps<{
+const props = defineProps<{
+  id: string
   data: {
     condition: string
     selector?: string
   }
 }>()
+
+const execution = useExecutionStore()
+const nodeStatus = computed(() => execution.getNodeStatus(props.id))
 </script>
 
 <template>
-  <div class="node-condition">
+  <div class="node-condition" :class="`status-${nodeStatus}`">
     <div class="node-header bg-amber-600">IF</div>
     <div class="node-body">
       <div class="node-field">{{ data.condition || 'condition' }}</div>
